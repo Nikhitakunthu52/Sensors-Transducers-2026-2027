@@ -1,10 +1,5 @@
 // ELEE 4230/6230 - CP3: thermistor + LDR signal chains, BMP280 calibration, Kalman
 // Built on the working CP2 sketch (BMP280, DHT22, PAWS-Secure, ThingSpeak).
-//
-// Thermistor chain (forward):
-//   T -> R_th -> R_th || Rp -> bridge V_B -> in-amp: G*(V_B - V_A) + V_REF -> RC filter -> ADC
-// LDR chain (forward):
-//   light -> R_ldr -> divider with R_fixed -> TL071 buffer -> RC filter -> ADC
 // The code undoes each chain one stage at a time (separate inverse functions).
 
 #include <Wire.h>
@@ -14,7 +9,7 @@
 #include <WiFi.h>
 #include "ThingSpeak.h"
 
-// ---- FILL THESE IN YOURSELF IN THE IDE ----
+// ---- FILL IN THE PASSWORD SECTION WITH UGA LOGIN DETAILS ----
 #define EAP_IDENTITY "nbk83478"
 #define EAP_USERNAME "nbk83478"
 #define EAP_PASSWORD ""
@@ -35,9 +30,8 @@ WiFiClient client;
 Adafruit_BMP280 bmp;
 DHT dht(DHTPIN, DHTTYPE);
 
-// =====================================================================
+
 // THERMISTOR: MEASURED CIRCUIT CONSTANTS
-// =====================================================================
 const float V_SUPPLY = 4.99;     // V   bridge supply (top of R1/R2 to GND)
 const float V_A      = 0.152;    // V   INA121 pin 2 to GND (measured)
 const float V_REF    = 0.494;    // V   INA121 pin 5 to GND (bias from TL071)
@@ -54,9 +48,7 @@ const float BETA     = 4425.0;   // K (provisional until warm/cool points)
 const float CAL_GAIN   = 1.0;
 const float CAL_OFFSET = 0.0;
 
-// =====================================================================
 // LDR: MEASURED CIRCUIT CONSTANTS
-// =====================================================================
 const float LDR_VS     = 4.99;      // V   supply on the LDR divider
 const float LDR_RFIXED = 1000.0;    // ohm fixed resistor, Node L to GND (measure it)
 
@@ -69,9 +61,7 @@ const float LDR_GAMMA = 0.623;
 const float LDR_V_MIN = 0.15;       // V   ADC floor  (darker than about 100 lux)
 const float LDR_V_MAX = 3.10;       // V   ADC ceiling (brighter than about 20,000 lux)
 
-// =====================================================================
 // THERMISTOR INVERSE TRANSFER FUNCTIONS - one per stage of the mountain
-// =====================================================================
 
 // Stage 5 inverse: ADC -> volts at GPIO34
 float adcToVolts() {
@@ -109,9 +99,8 @@ float calibrate(float tC) {
 
 float cToF(float c) { return c * 9.0 / 5.0 + 32.0; }
 
-// =====================================================================
 // THERMISTOR KALMAN FILTER (1-D, constant-temperature model)
-// =====================================================================
+
 float kal_x = 0;             // estimate (deg C)
 float kal_p = 1.0;           // estimate variance
 const float KAL_Q = 0.005;   // process noise
@@ -127,9 +116,7 @@ float kalmanUpdate(float z) {
   return kal_x;
 }
 
-// =====================================================================
 // LDR INVERSE TRANSFER FUNCTIONS - one per stage of the mountain
-// =====================================================================
 
 // Stage 3 inverse: ADC -> volts at GPIO35 (buffer and filter have gain 1)
 float ldrAdcToVolts() {
@@ -149,10 +136,8 @@ float ldrOhmsToLux(float r) {
   return pow(r / LDR_A, -1.0 / LDR_GAMMA);
 }
 
-// =====================================================================
 // LDR KALMAN FILTER
 // Runs on log10(lux), because the hardware output is linear in log-lux.
-// =====================================================================
 float ldr_x = 0, ldr_p = 1.0;
 const float LDR_Q = 0.002;   // process noise (decades^2): light changes quickly
 const float LDR_R = 0.010;   // measurement noise (decades^2)
@@ -167,9 +152,7 @@ float ldrKalman(float z) {
   return ldr_x;
 }
 
-// =====================================================================
 // SENSOR SUBFUNCTIONS (project rule: one function per sensor)
-// =====================================================================
 float readThermistorRawC() {
   float vOut  = adcToVolts();
   float vDiff = voltsToBridgeDiff(vOut);
@@ -194,9 +177,7 @@ float readBmpTempC()    { return bmp.readTemperature(); }
 float readBmpPressure() { return bmp.readPressure(); }
 float readHumidity()    { return dht.readHumidity(); }
 
-// =====================================================================
 // WIFI (unchanged from CP2)
-// =====================================================================
 void WiFiStationConnected(WiFiEvent_t event) {
   Serial.println("Connected to AP successfully!");
 }
@@ -227,7 +208,6 @@ void wifiSetup() {
   ThingSpeak.begin(client);
 }
 
-// =====================================================================
 unsigned long prevUpload = 0;
 unsigned long prevSample = 0;
 const unsigned long UPLOAD_MS = 16000;
