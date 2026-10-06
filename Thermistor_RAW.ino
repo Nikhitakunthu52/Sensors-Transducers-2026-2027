@@ -143,6 +143,15 @@ const float LDR_Q = 0.002;   // process noise (decades^2): light changes quickly
 const float LDR_R = 0.010;   // measurement noise (decades^2)
 bool  ldr_init = false;
 
+/**
+It's in kalmanUpdate(). Each sample it predicts (P grows by Q), 
+computes a gain K = P / (P + R), moves the estimate toward the new reading by K, then shrinks P. Q = 0.005 is 
+how fast I expect the real temperature to drift. R = 0.05 is the variance of a raw reading. 
+They settle to a gain of 0.27, so each reading moves the estimate 27% of the way. 
+Smoothness against lag. When I pinch the thermistor 
+the filtered value trails the raw one by up to about 2 °F for a few seconds.
+**/
+
 float ldrKalman(float z) {
   if (!ldr_init) { ldr_x = z; ldr_init = true; return ldr_x; }
   ldr_p += LDR_Q;
@@ -151,7 +160,15 @@ float ldrKalman(float z) {
   ldr_p *= (1.0 - k);
   return ldr_x;
 }
+/**
 
+adcToVolts(): averages 32 readings, converts to volts.
+voltsToBridgeDiff(): undoes the in-amp gain and bias.
+bridgeDiffToReq(): undoes the bridge.
+reqToRtherm(): undoes the parallel resistor.
+rthermToCelsius(): undoes the thermistor physics.
+
+**/
 // SENSOR SUBFUNCTIONS (project rule: one function per sensor)
 float readThermistorRawC() {
   float vOut  = adcToVolts();
@@ -160,7 +177,12 @@ float readThermistorRawC() {
   float rTh   = reqToRtherm(rEq);
   return calibrate(rthermToCelsius(rTh));
 }
-
+/**
+It's in kalmanUpdate(). Each sample it predicts (P grows by Q), 
+computes a gain K = P / (P + R), moves the estimate toward the new reading by K, then shrinks P. Q = 0.005 is 
+how fast I expect the real temperature to drift. R = 0.05 is the variance of a raw reading. 
+They settle to a gain of 0.27, so each reading moves the estimate 27% of the way.
+**/
 float readThermistorC() {            // calibrated + Kalman filtered
   return kalmanUpdate(readThermistorRawC());
 }
